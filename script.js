@@ -1,12 +1,35 @@
 /**
  * Saigon News - JavaScript Logic
- * Handles dynamic content rendering and SPA routing.
+ * Handles dynamic content rendering and SPA routing with SEO-friendly Slugs.
  */
+
+// Utility: Convert Vietnamese string to friendly slug
+function createSlug(str) {
+    str = str.toLowerCase();
+    str = str.replace(/(à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ)/g, 'a');
+    str = str.replace(/(è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ)/g, 'e');
+    str = str.replace(/(ì|í|ị|ỉ|ĩ)/g, 'i');
+    str = str.replace(/(ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ)/g, 'o');
+    str = str.replace(/(ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ)/g, 'u');
+    str = str.replace(/(ỳ|ý|ỵ|ỷ|ỹ)/g, 'y');
+    str = str.replace(/(đ)/g, 'd');
+    str = str.replace(/([^0-9a-z-\s])/g, '');
+    str = str.replace(/(\s+)/g, '-');
+    str = str.replace(/^-+/g, '');
+    str = str.replace(/-+$/g, '');
+    return str;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     
     // Articles data is loaded from data.js into window.ARTICLES_DATA
     const articles = window.ARTICLES_DATA || [];
+    
+    // Pre-process articles to add slugs
+    articles.forEach(a => {
+        // Generate a slug from the title, fallback to id if title is missing
+        a.slug = a.title ? createSlug(a.title) : a.id;
+    });
     
     const prArticles = articles.filter(a => a.type === 'pr');
     const newsArticles = articles.filter(a => a.type === 'kenh14');
@@ -15,9 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const homeView = document.getElementById('home-view');
     const articleView = document.getElementById('article-view');
     
-    // --- SPA Routing (History API) ---
-    function showArticle(id, pushHistory = true) {
-        const article = articles.find(a => a.id === id);
+    // --- SPA Routing (History API) with Slugs ---
+    function showArticle(slug, pushHistory = true) {
+        const article = articles.find(a => a.slug === slug);
         if (!article) {
             showHome(pushHistory);
             return;
@@ -32,8 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0, 0);
 
         if (pushHistory) {
-            const newUrl = window.location.pathname + '?id=' + id;
-            window.history.pushState({ view: 'article', id: id }, '', newUrl);
+            // URL format: ?post=tieu-de-bai-viet
+            const newUrl = window.location.pathname + '?post=' + slug;
+            window.history.pushState({ view: 'article', slug: slug }, '', newUrl);
         }
     }
     
@@ -50,10 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle browser's Back and Forward buttons
     window.addEventListener('popstate', (event) => {
         const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('id');
+        const slug = urlParams.get('post');
         
-        if (id) {
-            showArticle(id, false);
+        if (slug) {
+            showArticle(slug, false);
         } else {
             showHome(false);
         }
@@ -80,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function createCardHTML(article, isHero = false) {
         if (isHero) {
             return `
-                <div class="article-link" data-id="${article.id}" style="display:block; width:100%; height:100%; cursor:pointer;">
+                <div class="article-link" data-slug="${article.slug}" style="display:block; width:100%; height:100%; cursor:pointer;">
                     <img src="${article.image || 'https://picsum.photos/1200/800'}" alt="${article.title}" class="hero-bg" loading="lazy">
                     <div class="hero-overlay"></div>
                     <div class="hero-content">
@@ -100,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         return `
-            <div class="article-card article-link" data-id="${article.id}" style="cursor:pointer;">
+            <div class="article-card article-link" data-slug="${article.slug}" style="cursor:pointer;">
                 <div class="card-img-wrapper">
                     <img src="${article.image || 'https://picsum.photos/600/400?random=' + Math.random()}" alt="${article.title}" class="card-img" loading="lazy">
                 </div>
@@ -141,16 +165,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.article-link').forEach(el => {
         el.addEventListener('click', (e) => {
             e.preventDefault();
-            const id = el.getAttribute('data-id');
-            showArticle(id, true);
+            const slug = el.getAttribute('data-slug');
+            showArticle(slug, true);
         });
     });
 
     // --- Initialize View on Page Load ---
     const urlParams = new URLSearchParams(window.location.search);
-    const initialId = urlParams.get('id');
-    if (initialId) {
-        showArticle(initialId, false);
+    // Check if there is a 'post' param
+    const initialSlug = urlParams.get('post');
+    if (initialSlug) {
+        showArticle(initialSlug, false);
     } else {
         window.history.replaceState({ view: 'home' }, '', window.location.pathname);
     }
