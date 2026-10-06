@@ -1,6 +1,6 @@
 /**
  * Saigon News - JavaScript Logic
- * Handles dynamic content rendering and SPA routing with SEO-friendly Slugs.
+ * Handles dynamic content rendering, SPA routing with SEO-friendly Slugs, and category filtering.
  */
 
 // Utility: Convert Vietnamese string to friendly slug
@@ -20,6 +20,16 @@ function createSlug(str) {
     return str;
 }
 
+// Utility: Shuffle Array for fake category demo
+function shuffleArray(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     
     // Articles data is loaded from data.js into window.ARTICLES_DATA
@@ -27,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Pre-process articles to add slugs
     articles.forEach(a => {
-        // Generate a slug from the title, fallback to id if title is missing
         a.slug = a.title ? createSlug(a.title) : a.id;
     });
     
@@ -37,6 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Render Views ---
     const homeView = document.getElementById('home-view');
     const articleView = document.getElementById('article-view');
+    
+    // Sections to toggle during category view
+    const heroSection = document.getElementById('hero-article');
+    const prGridSection = document.getElementById('pr-grid');
+    const prTitleSection = prGridSection ? prGridSection.previousElementSibling : null;
+    const newsTitleH2 = document.querySelector('#news-grid').previousElementSibling.querySelector('h2');
     
     // --- SPA Routing (History API) with Slugs ---
     function showArticle(slug, pushHistory = true) {
@@ -55,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0, 0);
 
         if (pushHistory) {
-            // URL format: ?post=tieu-de-bai-viet
             const newUrl = window.location.pathname + '?post=' + slug;
             window.history.pushState({ view: 'article', slug: slug }, '', newUrl);
         }
@@ -64,6 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function showHome(pushHistory = true) {
         homeView.style.display = 'block';
         articleView.style.display = 'none';
+        
+        // Reset category to "Trang Chủ"
+        document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+        document.querySelector('.nav-menu a').classList.add('active'); // First link is Trang Chủ
+        renderCategory("Trang Chủ");
+        
         window.scrollTo(0, 0);
 
         if (pushHistory) {
@@ -143,40 +163,88 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    // --- Render Content ---
-    const heroArticle = newsArticles.length > 0 ? newsArticles[0] : (prArticles.length > 0 ? prArticles[0] : null);
-    const heroSection = document.getElementById('hero-article');
-    if (heroSection && heroArticle) {
-        heroSection.innerHTML = createCardHTML(heroArticle, true);
+    // Function to attach click events to newly rendered cards
+    function attachArticleClicks() {
+        document.querySelectorAll('.article-link').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                const slug = el.getAttribute('data-slug');
+                showArticle(slug, true);
+            });
+        });
     }
 
-    const prGrid = document.getElementById('pr-grid');
-    if (prGrid && prArticles.length > 0) {
-        prGrid.innerHTML = prArticles.map(a => createCardHTML(a)).join('');
+    // --- Render Category Function ---
+    function renderCategory(categoryName) {
+        const newsGrid = document.getElementById('news-grid');
+        if (!newsGrid) return;
+        
+        if (categoryName === "Trang Chủ") {
+            // Show Home View Elements
+            if (heroSection) heroSection.style.display = 'block';
+            if (prGridSection) prGridSection.style.display = 'grid';
+            if (prTitleSection) prTitleSection.style.display = 'block';
+            if (newsTitleH2) newsTitleH2.innerText = 'Tin Tức Tổng Hợp';
+            
+            // Render Hero
+            const heroArticle = newsArticles.length > 0 ? newsArticles[0] : (prArticles.length > 0 ? prArticles[0] : null);
+            if (heroSection && heroArticle) {
+                heroSection.innerHTML = createCardHTML(heroArticle, true);
+            }
+            
+            // Render PR
+            if (prGridSection && prArticles.length > 0) {
+                prGridSection.innerHTML = prArticles.map(a => createCardHTML(a)).join('');
+            }
+            
+            // Render News
+            const restNews = newsArticles.slice(1);
+            newsGrid.innerHTML = restNews.map(a => createCardHTML(a)).join('');
+            
+        } else {
+            // Hide Home Elements
+            if (heroSection) heroSection.style.display = 'none';
+            if (prGridSection) prGridSection.style.display = 'none';
+            if (prTitleSection) prTitleSection.style.display = 'none';
+            
+            if (newsTitleH2) newsTitleH2.innerText = 'Chuyên mục ' + categoryName;
+            
+            // Shuffle news to simulate category data
+            const categoryNews = shuffleArray(newsArticles);
+            newsGrid.innerHTML = categoryNews.map(a => createCardHTML(a)).join('');
+        }
+        
+        attachArticleClicks();
     }
 
-    const newsGrid = document.getElementById('news-grid');
-    if (newsGrid && newsArticles.length > 0) {
-        const restNews = newsArticles.slice(1);
-        newsGrid.innerHTML = restNews.map(a => createCardHTML(a)).join('');
-    }
-    
-    // Attach click events
-    document.querySelectorAll('.article-link').forEach(el => {
-        el.addEventListener('click', (e) => {
+    // --- Category Menu Clicks ---
+    document.querySelectorAll('.nav-menu a').forEach(link => {
+        link.addEventListener('click', (e) => {
             e.preventDefault();
-            const slug = el.getAttribute('data-slug');
-            showArticle(slug, true);
+            const categoryName = e.target.innerText;
+            
+            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // Ensure we are on home view first
+            homeView.style.display = 'block';
+            articleView.style.display = 'none';
+            window.history.pushState({ view: 'home' }, '', window.location.pathname);
+            
+            renderCategory(categoryName);
+            window.scrollTo(0, 0);
         });
     });
 
     // --- Initialize View on Page Load ---
     const urlParams = new URLSearchParams(window.location.search);
-    // Check if there is a 'post' param
     const initialSlug = urlParams.get('post');
     if (initialSlug) {
+        // We still need to render the home grid in background
+        renderCategory("Trang Chủ");
         showArticle(initialSlug, false);
     } else {
+        renderCategory("Trang Chủ");
         window.history.replaceState({ view: 'home' }, '', window.location.pathname);
     }
 
