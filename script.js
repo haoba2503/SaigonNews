@@ -1,6 +1,6 @@
 /**
  * Saigon News - JavaScript Logic
- * Handles dynamic content rendering and micro-animations.
+ * Handles dynamic content rendering and SPA routing.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,9 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const homeView = document.getElementById('home-view');
     const articleView = document.getElementById('article-view');
     
-    function showArticle(id) {
+    // --- SPA Routing (History API) ---
+    function showArticle(id, pushHistory = true) {
         const article = articles.find(a => a.id === id);
-        if (!article) return;
+        if (!article) {
+            showHome(pushHistory);
+            return;
+        }
         
         document.getElementById('detail-title').innerText = article.title;
         document.getElementById('detail-sapo').innerText = article.sapo;
@@ -26,18 +30,53 @@ document.addEventListener('DOMContentLoaded', () => {
         homeView.style.display = 'none';
         articleView.style.display = 'block';
         window.scrollTo(0, 0);
+
+        if (pushHistory) {
+            const newUrl = window.location.pathname + '?id=' + id;
+            window.history.pushState({ view: 'article', id: id }, '', newUrl);
+        }
     }
     
-    const backBtn = document.getElementById('back-btn');
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            homeView.style.display = 'block';
-            articleView.style.display = 'none';
-            window.scrollTo(0, 0);
+    function showHome(pushHistory = true) {
+        homeView.style.display = 'block';
+        articleView.style.display = 'none';
+        window.scrollTo(0, 0);
+
+        if (pushHistory) {
+            window.history.pushState({ view: 'home' }, '', window.location.pathname);
+        }
+    }
+
+    // Handle browser's Back and Forward buttons
+    window.addEventListener('popstate', (event) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id');
+        
+        if (id) {
+            showArticle(id, false);
+        } else {
+            showHome(false);
+        }
+    });
+
+    // Handle Logo click
+    const logoBtn = document.getElementById('logo-btn');
+    if (logoBtn) {
+        logoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showHome(true);
         });
     }
 
-    // Helper to generate card HTML
+    // Handle Back Button in Article View
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            showHome(true);
+        });
+    }
+
+    // --- Helper to generate card HTML ---
     function createCardHTML(article, isHero = false) {
         if (isHero) {
             return `
@@ -80,53 +119,54 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    // --- Render Hero Article ---
-    // Use the first Kenh14 article as hero, or fallback to PR
+    // --- Render Content ---
     const heroArticle = newsArticles.length > 0 ? newsArticles[0] : (prArticles.length > 0 ? prArticles[0] : null);
     const heroSection = document.getElementById('hero-article');
-    
     if (heroSection && heroArticle) {
         heroSection.innerHTML = createCardHTML(heroArticle, true);
     }
 
-    // --- Render PR Grid ---
     const prGrid = document.getElementById('pr-grid');
     if (prGrid && prArticles.length > 0) {
         prGrid.innerHTML = prArticles.map(a => createCardHTML(a)).join('');
     }
 
-    // --- Render News Grid ---
     const newsGrid = document.getElementById('news-grid');
     if (newsGrid && newsArticles.length > 0) {
-        // Skip the first one if it's used as hero
         const restNews = newsArticles.slice(1);
         newsGrid.innerHTML = restNews.map(a => createCardHTML(a)).join('');
     }
     
-    // --- Attach Click Events ---
+    // Attach click events
     document.querySelectorAll('.article-link').forEach(el => {
         el.addEventListener('click', (e) => {
             e.preventDefault();
             const id = el.getAttribute('data-id');
-            showArticle(id);
+            showArticle(id, true);
         });
     });
 
+    // --- Initialize View on Page Load ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialId = urlParams.get('id');
+    if (initialId) {
+        showArticle(initialId, false);
+    } else {
+        window.history.replaceState({ view: 'home' }, '', window.location.pathname);
+    }
+
     // --- Dynamic Cursor Glow Effect ---
     const cursorGlow = document.getElementById('cursor-glow');
-    
     if (cursorGlow) {
         document.addEventListener('mousemove', (e) => {
             requestAnimationFrame(() => {
                 cursorGlow.style.left = e.clientX + 'px';
                 cursorGlow.style.top = e.clientY + 'px';
             });
-            
             if (cursorGlow.style.opacity === '0' || cursorGlow.style.opacity === '') {
                 cursorGlow.style.opacity = '1';
             }
         });
-
         document.addEventListener('mouseleave', () => {
             cursorGlow.style.opacity = '0';
         });
