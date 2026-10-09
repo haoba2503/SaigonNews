@@ -1,5 +1,5 @@
 /**
- * Saigon News - JavaScript Logic
+ * Saigon Trend - JavaScript Logic
  * Handles dynamic content rendering, SPA routing with SEO-friendly Slugs, and category filtering.
  */
 
